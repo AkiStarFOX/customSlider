@@ -12,7 +12,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 
-public class MainActivity extends AppCompatActivity  implements View.OnTouchListener{
+public class MainActivity extends AppCompatActivity  implements HSLSlider.OnValueChangeListener{
     ImageView img;
     HSL hsl;
     HSLSlider h;
@@ -31,14 +31,19 @@ public class MainActivity extends AppCompatActivity  implements View.OnTouchList
         h = findViewById(R.id.h);
         s = findViewById(R.id.s);
         l = findViewById(R.id.l);
-//        s.setColor(h.getColor());
-//        l.setColor(s.getColor());
+        s.setColor(h.getColor());
+        l.setColor(s.getColor());
 
         hsl = new HSL(h.getColor().h, s.getColor().s, l.getColor().l);
         bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-        hsl.set(l.getColor());
+        hsl.set(h.getColor());
         bitmap.eraseColor(hsl.toColor());
-        layout.setOnTouchListener(this);
+        img = findViewById(R.id.imageView);
+        h.setOnValueChangeListener(this);
+        s.setOnValueChangeListener(this);
+        l.setOnValueChangeListener(this);
+
+
 
 
 
@@ -46,14 +51,17 @@ public class MainActivity extends AppCompatActivity  implements View.OnTouchList
     }
 
 
-
     @Override
-    public boolean onTouch(View view, MotionEvent motionEvent) {
+    public void onValueChange(HSLSlider slider, float value) {
+        if (slider==h){
+            Log.d("TAG","value = " + value);
+        }
+        if (slider==s){
+            Log.d("TAG","value = " + value);
+        }
+        if (slider==l){
+            Log.d("TAG","value = " + value);
+        }
 
-        Log.d("TAG", "h = " + h.getColor().h + " s = " + h.getColor().s + " l = " + h.getColor().l);
-        Log.d("TAG", "h2 = " + s.getColor().h + " s2 = " + s.getColor().s + " l2 = " + s.getColor().l);
-        Log.d("TAG", "h3 = " + l.getColor().h + " s3 = " + l.getColor().s + " l3 = " + l.getColor().l);
-
-        return true;
     }
 }
