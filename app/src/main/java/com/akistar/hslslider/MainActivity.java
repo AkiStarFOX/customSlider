@@ -38,7 +38,6 @@ public class MainActivity extends AppCompatActivity  implements HSLSlider.OnValu
         bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
         hsl.set(h.getColor());
         bitmap.eraseColor(hsl.toColor());
-        img = findViewById(R.id.imageView);
         h.setOnValueChangeListener(this);
         s.setOnValueChangeListener(this);
         l.setOnValueChangeListener(this);

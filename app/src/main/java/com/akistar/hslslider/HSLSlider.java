@@ -12,7 +12,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.ImageView;
+import android.view.ViewTreeObserver;
 
 /**
  * Created by AkiStar on 04.04.2018.
@@ -20,17 +20,16 @@ import android.widget.ImageView;
 
 public class HSLSlider extends View implements View.OnTouchListener {
 
-    private float _heightSlider;
-    private float _radiusPoint;
-    private String _typeOfSlider;
+    private float _sliderHeight; // _sliderHeight
+    private float _thumbRadius; // _thumbRadius
+    private SliderType _sliderType; // _sliderType и сделать как enum
     private final static float DEFAULT_HEIGHT = 10;
     private final static float DEFAULT_RADIUS = 10;
-    private final static float DEFAULT_PADDING = 0;
-    private float _heightV;
-    private float _widthV;
-    private float _xCenter;
+    private float _heightV; 
+    private float _widthV;  
+    private float _thumbPos; // thumbPos
     private float _xDown;
-    private boolean move = false;
+    private boolean _move = false; // _move
     private HSL color;
     HSL color2;
     HSL color3;
@@ -43,7 +42,8 @@ public class HSLSlider extends View implements View.OnTouchListener {
     }
 
     public void setColor(HSL color) {
-        this.color = color;
+        this.color.set(color); // this.color.set(color), не надо тут ссылки использовать
+		// положение бегунка тоже должно меняться
     }
 
 
@@ -61,27 +61,28 @@ public class HSLSlider extends View implements View.OnTouchListener {
         int[] attributesPadding = new int[]{android.R.attr.paddingLeft, android.R.attr.paddingRight};
         TypedArray attPadding = context.obtainStyledAttributes(attrs, attributesPadding);
         TypedArray attributes = context.obtainStyledAttributes(attrs, R.styleable.HSLSlider);
-        _heightSlider = attributes.getDimension(R.styleable.HSLSlider_heigthSlider, DEFAULT_HEIGHT);
-        _radiusPoint = attributes.getDimension(R.styleable.HSLSlider_radiusPoint, DEFAULT_RADIUS);
-        _typeOfSlider = attributes.getString(R.styleable.HSLSlider_type);
-
+        _sliderHeight = attributes.getDimension(R.styleable.HSLSlider_heigthSlider, DEFAULT_HEIGHT);
+        _thumbRadius = attributes.getDimension(R.styleable.HSLSlider_radiusPoint, DEFAULT_RADIUS);
+        _sliderType = SliderType.values()[attributes.getInt(R.styleable.HSLSlider_type,1)];
         _paddingLeft = attPadding.getDimension(0, -1);
         _paddingRight = attPadding.getDimension(1, -1);
-        Log.d("TAG", "padding" + _paddingRight);
 
+		// одного цвета достаточно + у color должен быть дефолтный цвет (0, 0.5, 0.5)
+        color = new HSL(0f, 0.5f, 0.5f);
 
-        color = new HSL(150f, 1f, 0.5f);
-        color2 = new HSL(150f, 1f, 0.5f);
-        color3 = new HSL(150f, 1f, 0.5f);
-        if (_typeOfSlider.equals("hue")) {
+        if (_sliderType==SliderType.HUE) {
             int[] mass = new int[360];
             for (int i = 0; i < 360; i++) {
                 color.set(i, 1f, 0.5f);
                 mass[i] = color.toColor();
             }
             backImage = Bitmap.createBitmap(mass, 360, 1, Bitmap.Config.ARGB_8888);
+            _thumbPos = _thumbRadius + _paddingLeft;
         }
-        _xCenter = _radiusPoint + _paddingLeft;
+        if (_sliderType==SliderType.SATURATION){
+            _thumbPos = _thumbRadius + _paddingLeft+_widthV/2;
+        }
+        // дефолтное положение бегунка разное для каждого типа слайдера
         this.setOnTouchListener(this);
     }
 
@@ -90,36 +91,44 @@ public class HSLSlider extends View implements View.OnTouchListener {
     protected void onDraw(Canvas canvas) {
         _heightV = canvas.getHeight();
         _widthV = canvas.getWidth();
-        if (_typeOfSlider.equals("hue")) {
-            canvas.drawBitmap(Bitmap.createScaledBitmap(backImage, (int) ((_widthV - _radiusPoint * 2) - (_paddingLeft + _paddingRight)), (int) _heightSlider, true), _radiusPoint + _paddingLeft, _heightV / 2 - _heightSlider / 2, p);
-            color.h = ((_xCenter - _radiusPoint - _paddingLeft) / (((_widthV - _radiusPoint) - _paddingRight) - _paddingLeft - _radiusPoint)) * 360;
+		
+
+        if (_sliderType==SliderType.HUE) {
+			// незачем создавать соскейленный битмап посмотри в доках описание метода drawBitmap 
+            canvas.drawBitmap(Bitmap.createScaledBitmap(backImage, (int) ((_widthV - _thumbRadius * 2) - (_paddingLeft + _paddingRight)), (int) _sliderHeight, true), _thumbRadius + _paddingLeft, _heightV / 2 - _sliderHeight / 2, p);
+            
+			// числитель и знаменатель распихай по отдельным переменным, что красиво было. Типа sliderValue, maxSliderValue 
+			// и значение value = sliderValue / maxSliderValue вынеси за switch, а то ты один и тот же кода юзаешь везде
+			// + меняй всё это дело в методе onTouch
+			color.h = ((_thumbPos - _thumbRadius - _paddingLeft) / (((_widthV - _thumbRadius) - _paddingRight) - _paddingLeft - _thumbRadius)) * 360;
 
 
-        } else if (_typeOfSlider.equals("saturation")) {
-            color2.set(color);
+        } else if (_sliderType==SliderType.SATURATION) {
+			// для saturation и lightness незачем при каждой отрисовке создавать битмап делай это в setColor и в конструкторе с дефолтным цветом
             int[] mass = new int[100];
             for (int i = 0; i < 100; i++) {
-                color2.set(color2.h, i / 100f, 0.5f);
-                mass[i] = color2.toColor();
+                color.set(color.h, i / 100f, color.l);
+                mass[i] = color.toColor();
             }
             backImage = Bitmap.createBitmap(mass, 100, 1, Bitmap.Config.ARGB_8888);
-            canvas.drawBitmap(Bitmap.createScaledBitmap(backImage, (int) ((_widthV - _radiusPoint * 2) - (_paddingLeft + _paddingRight)), (int) _heightSlider, true), _radiusPoint + _paddingLeft, _heightV / 2 - _heightSlider / 2, p);
-            color.s = ((_xCenter - _radiusPoint - _paddingLeft) / (((_widthV - _radiusPoint) - _paddingRight) - _paddingLeft - _radiusPoint)) * 100;
+            canvas.drawBitmap(Bitmap.createScaledBitmap(backImage, (int) ((_widthV - _thumbRadius * 2) - (_paddingLeft + _paddingRight)), (int) _sliderHeight, true), _thumbRadius + _paddingLeft, _heightV / 2 - _sliderHeight / 2, p);
+            
+			color.s = ((_thumbPos - _thumbRadius - _paddingLeft) / (((_widthV - _thumbRadius) - _paddingRight) - _paddingLeft - _thumbRadius)) * 100;
 
-        } else if (_typeOfSlider.equals("lightness")) {
-            color3.set(color);
+        } else if (_sliderType==SliderType.LIGHTNESS) {
+
             int[] mass = new int[100];
             for (int i = 0; i < 100; i++) {
-                color3.set(color3.h, 1.0f, i / 100f);
-                mass[i] = color3.toColor();
+                color.set(color.h, color.s, i / 100f);
+                mass[i] = color.toColor();
             }
             backImage = Bitmap.createBitmap(mass, 100, 1, Bitmap.Config.ARGB_8888);
-            canvas.drawBitmap(Bitmap.createScaledBitmap(backImage, (int) ((_widthV - _radiusPoint * 2) - (_paddingLeft + _paddingRight)), (int) _heightSlider, true), _radiusPoint + _paddingLeft, _heightV / 2 - _heightSlider / 2, p);
-            color.l = ((_xCenter - _radiusPoint - _paddingLeft) / (((_widthV - _radiusPoint) - _paddingRight) - _paddingLeft - _radiusPoint)) * 100;
+            canvas.drawBitmap(Bitmap.createScaledBitmap(backImage, (int) ((_widthV - _thumbRadius * 2) - (_paddingLeft + _paddingRight)), (int) _sliderHeight, true), _thumbRadius + _paddingLeft, _heightV / 2 - _sliderHeight / 2, p);
+            color.l = ((_thumbPos - _thumbRadius - _paddingLeft) / (((_widthV - _thumbRadius) - _paddingRight) - _paddingLeft - _thumbRadius)) * 100;
         }
         p.setShader(null);
         p.setColor(Color.RED);
-        canvas.drawCircle(_xCenter, _heightV / 2, _radiusPoint, p);
+        canvas.drawCircle(_thumbPos, _heightV / 2, _thumbRadius, p);
         this.invalidate();
 
     }
@@ -128,37 +137,40 @@ public class HSLSlider extends View implements View.OnTouchListener {
     public boolean onTouch(View view, MotionEvent motionEvent) {
         switch (motionEvent.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                if (motionEvent.getY() >= (_heightV / 2 - _heightSlider / 2) && motionEvent.getY() <= (_heightV / 2 + _heightSlider / 2) && motionEvent.getX() >= _radiusPoint + _paddingLeft && motionEvent.getX() <= (_widthV - _radiusPoint) - _paddingRight) {
-                    _xCenter = motionEvent.getX();
-                    move = true;
+				// y не нужно чекать, если ты сюда попал, то с y всё ок
+                if (motionEvent.getY() >= (_heightV / 2 - _sliderHeight / 2) && motionEvent.getY() <= (_heightV / 2 + _sliderHeight / 2) && motionEvent.getX() >= _thumbRadius + _paddingLeft && motionEvent.getX() <= (_widthV - _thumbRadius) - _paddingRight) {
+                    _thumbPos = motionEvent.getX();
+                    _move = true;
                     this.invalidate();
                     _xDown = motionEvent.getX();
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
 
-                if (move) {
-                    _xCenter += motionEvent.getX() - _xDown;
+                if (_move) {
+                    _thumbPos += motionEvent.getX() - _xDown;
                     this.invalidate();
                     _xDown = motionEvent.getX();
                 }
-                if (_xCenter <= _radiusPoint + _paddingLeft) {
-                    _xCenter = _radiusPoint + _paddingLeft;
+                if (_thumbPos <= _thumbRadius + _paddingLeft) {
+                    _thumbPos = _thumbRadius + _paddingLeft;
                 }
-                if (_xCenter >= (_widthV - _radiusPoint) - _paddingRight) {
-                    _xCenter = (_widthV - _radiusPoint) - _paddingRight;
+                if (_thumbPos >= (_widthV - _thumbRadius) - _paddingRight) {
+                    _thumbPos = (_widthV - _thumbRadius) - _paddingRight;
                 }
-                if (_typeOfSlider.equals("hue")) {
+				
+				
+                if (_sliderType.equals("hue")) {
                     if (_valueChangeListener != null) {
                         _valueChangeListener.onValueChange(this, color.h);
                     }
                 }
-                if (_typeOfSlider.equals("saturation")) {
+                if (_sliderType.equals("saturation")) {
                     if (_valueChangeListener != null) {
                         _valueChangeListener.onValueChange(this, color.s);
                     }
                 }
-                if (_typeOfSlider.equals("lightness")) {
+                if (_sliderType.equals("lightness")) {
                     if (_valueChangeListener != null) {
                         _valueChangeListener.onValueChange(this, color.l);
                     }
@@ -167,10 +179,12 @@ public class HSLSlider extends View implements View.OnTouchListener {
         return true;
     }
 
+	// это должно располагаться до полей
     public interface OnValueChangeListener {
         void onValueChange(HSLSlider slider, float value);
     }
 
+	// расположи это вместе с остальными полями
     private OnValueChangeListener _valueChangeListener;
 
     public void setOnValueChangeListener(OnValueChangeListener listener) {
