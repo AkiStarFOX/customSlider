@@ -21,6 +21,9 @@ public class HSLSlider extends View implements View.OnTouchListener {
     public interface OnValueChangeListener {
         void onValueChange(HSLSlider slider, float value);
     }
+    public void setOnValueChangeListener(OnValueChangeListener listener) {
+        _valueChangeListener = listener;
+    }
 
     private float _sliderHeight; // _sliderHeight
     private float _thumbRadius; // _thumbRadius
@@ -236,9 +239,7 @@ public class HSLSlider extends View implements View.OnTouchListener {
 
 
     // расположи это вместе с остальными полями
-    public void setOnValueChangeListener(OnValueChangeListener listener) {
-        _valueChangeListener = listener;
-    }
+
 
 
 }
