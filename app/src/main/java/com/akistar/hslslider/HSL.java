@@ -31,6 +31,9 @@ public class HSL implements Copyable<HSL> {
         this.s = s;
         this.l = l;
     }
+    public HSL(HSL hsl){
+        set(hsl);
+    }
 
     /**
      * Сравнение с другим HSL цветом

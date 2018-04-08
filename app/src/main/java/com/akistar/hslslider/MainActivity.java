@@ -1,6 +1,7 @@
 package com.akistar.hslslider;
 
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.support.constraint.ConstraintLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -12,9 +13,9 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 
-public class MainActivity extends AppCompatActivity  implements HSLSlider.OnValueChangeListener{
+public class MainActivity extends AppCompatActivity implements HSLSlider.OnValueChangeListener {
     ImageView img;
-    HSL hsl;
+    HSL hsl = new HSL(Color.RED);
     HSLSlider h;
     HSLSlider s;
     HSLSlider l;
@@ -31,20 +32,14 @@ public class MainActivity extends AppCompatActivity  implements HSLSlider.OnValu
         h = findViewById(R.id.h);
         s = findViewById(R.id.s);
         l = findViewById(R.id.l);
-        s.setColor(h.getColor());
-        l.setColor(s.getColor());
 
-        hsl = new HSL(h.getColor().h, s.getColor().s, l.getColor().l);
-        bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-        hsl.set(h.getColor());
-        bitmap.eraseColor(hsl.toColor());
         h.setOnValueChangeListener(this);
         s.setOnValueChangeListener(this);
         l.setOnValueChangeListener(this);
 
-
-
-
+        h.setColor(hsl);
+        s.setColor(hsl);
+        l.setColor(hsl);
 
 
     }
@@ -52,15 +47,27 @@ public class MainActivity extends AppCompatActivity  implements HSLSlider.OnValu
 
     @Override
     public void onValueChange(HSLSlider slider, float value) {
-        if (slider==h){
-            Log.d("TAG","value = " + value);
+        switch (slider.getId()) {
+            case R.id.h:
+                hsl.h = value;
+                s.setColor(hsl);
+                l.setColor(hsl);
+                break;
+            case R.id.s:
+                hsl.s = value;
+                l.setColor(hsl);
+                break;
+            case R.id.l:
+                hsl.l = value;
+                s.setColor(hsl);
+
+                break;
+
         }
-        if (slider==s){
-            Log.d("TAG","value = " + value);
-        }
-        if (slider==l){
-            Log.d("TAG","value = " + value);
-        }
+
+        Log.d("TAG", "color h" + s.getColor().s);
+        Log.d("TAG", "color s" + l.getColor().s);
+
 
     }
 }
