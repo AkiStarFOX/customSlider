@@ -9,9 +9,10 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+
+import static com.akistar.hslslider.SliderType.HUE;
 
 /**
  * Created by AkiStar on 04.04.2018.
@@ -21,224 +22,136 @@ public class HSLSlider extends View implements View.OnTouchListener {
     public interface OnValueChangeListener {
         void onValueChange(HSLSlider slider, float value);
     }
+
+    private final static float DEFAULT_HEIGHT = 5;
+    private final static float DEFAULT_RADIUS = 5;
+    private float _halfSliderHeight = DEFAULT_HEIGHT / 2f;// _sliderHeight
+    private float _thumbRadius = DEFAULT_RADIUS; // _thumbRadius
+    private SliderType _sliderType = SliderType.HUE; // _sliderType и сделать как enum
+    private float _thumbPos = 0f; // thumbPos
+    private HSL _color = new HSL(0f, 0.5f, 0.5f);;
+    private Paint _paint = new Paint();
+    private RectF _rect = new RectF();
+    private Bitmap _backImage;
+
+
+    private OnValueChangeListener _valueChangeListener;
+
+    public HSLSlider (Context context){
+        super(context);
+        setOnTouchListener(this);
+        _paint.setAntiAlias(true);
+        createProgressBitmap();
+
+    }
+
+    public HSLSlider(Context context, @Nullable AttributeSet attrs) {
+        super(context, attrs);
+
+        TypedArray attributes = context.obtainStyledAttributes(attrs, R.styleable.HSLSlider);
+
+        _halfSliderHeight= attributes.getDimension(R.styleable.HSLSlider_heigthSlider, DEFAULT_HEIGHT)/2f;
+        _thumbRadius= attributes.getDimension(R.styleable.HSLSlider_radiusPoint, DEFAULT_RADIUS);
+        _sliderType = SliderType.values()[attributes.getInt(R.styleable.HSLSlider_type, 1)];
+
+        _thumbPos = _sliderType==SliderType.HUE ? 1.f : 0.5f;
+
+        setOnTouchListener(this);
+        createProgressBitmap();
+
+        _paint.setAntiAlias(true);
+    }
+
+    private void createProgressBitmap(){
+        int width = _sliderType==SliderType.HUE ? 361 : 101;
+        int[] colors = new int[width];
+        HSL c = _sliderType==SliderType.HUE ? new HSL (0,1f,0.5f) : new HSL(_color);
+
+        for (int i=0;i<width;i++){
+            float v = (float) i / (width - 1);
+
+            switch (_sliderType){
+                case HUE:
+                    c.h = v * 360;
+                    break;
+                case LIGHTNESS:
+                    c.l = v;
+                    break;
+                case SATURATION:
+                    c.s = v;
+                    break;
+            }
+            colors[i]=c.toColor();
+        }
+        _backImage = Bitmap.createBitmap(colors,width,1, Bitmap.Config.ARGB_8888);
+    }
+
+
+    public HSL getColor() {
+        return _color;
+    }
+
+    public void setColor(HSL color) {
+        _color.set(color);
+
+        if (_sliderType != SliderType.HUE){
+            createProgressBitmap();
+            _thumbPos = _sliderType==SliderType.SATURATION ? _color.s: _color.l;
+        } else {
+            _thumbPos = color.s/360;
+        }
+        invalidate();
+    }
+
     public void setOnValueChangeListener(OnValueChangeListener listener) {
         _valueChangeListener = listener;
     }
 
-    private float _sliderHeight; // _sliderHeight
-    private float _thumbRadius; // _thumbRadius
-    private SliderType _sliderType; // _sliderType и сделать как enum
-    private final static float DEFAULT_HEIGHT = 10;
-    private final static float DEFAULT_RADIUS = 10;
-    private float _heightV;
-    private float _widthV;
-    private float _thumbPos; // thumbPos
-    private float _xDown;
-    private boolean _move = false; // _move
-    private HSL color;
-    private float _paddingLeft;
-    private float _paddingRight;
-    private float _sliderMin;
-    private float _sliderMax;
-    private float _startThumbPos;
-    private float _sliderValue;
-    private float _sliderMaxValue;
-    private float _sliderMinValue;
-    private float _sliderMove;
-    private OnValueChangeListener _valueChangeListener;
-    Paint p;
-    RectF _rect;
-    Bitmap backImage;
-    private boolean _firstTime;
-
-
-    public HSL getColor() {
-        return color;
-    }
-
-    public void setColor(HSL color) {
-
-        this.color.set(color); // this.color.set(color), не надо тут ссылки использовать
-        // положение бегунка тоже должно меняться
-
-        if (_sliderType == SliderType.HUE) {
-
-
-            _startThumbPos = color.h / 360;
-        }
-        if (_sliderType == SliderType.SATURATION) {
-            HSL c = new HSL(color);
-
-            int[] mass = new int[100];
-            for (int i = 0; i < 100; i++) {
-                c.s = i / 100f;
-                mass[i] = c.toColor();
-            }
-
-
-            _startThumbPos = color.s;
-            backImage = Bitmap.createBitmap(mass, 100, 1, Bitmap.Config.ARGB_8888);
-
-
-        }
-        if (_sliderType == SliderType.LIGHTNESS) {
-            HSL c = new HSL(color);
-            int[] mass = new int[100];
-            for (int i = 0; i < 100; i++) {
-                c.l = i / 100f;
-                mass[i] = c.toColor();
-            }
-            backImage = Bitmap.createBitmap(mass, 100, 1, Bitmap.Config.ARGB_8888);
-
-
-            _startThumbPos = color.l;
-        }
-
-    }
-
-
-    public HSLSlider(Context context, @Nullable AttributeSet attrs) {
-        super(context, attrs);
-        p = new Paint();
-        p.setAntiAlias(true);
-        p.setFilterBitmap(true);
-        p.setDither(true);
-        _rect = new RectF();
-        int[] attributesPadding = new int[]{android.R.attr.paddingLeft, android.R.attr.paddingRight};
-        TypedArray attPadding = context.obtainStyledAttributes(attrs, attributesPadding);
-        TypedArray attributes = context.obtainStyledAttributes(attrs, R.styleable.HSLSlider);
-        _sliderHeight = attributes.getDimension(R.styleable.HSLSlider_heigthSlider, DEFAULT_HEIGHT);
-        _thumbRadius = attributes.getDimension(R.styleable.HSLSlider_radiusPoint, DEFAULT_RADIUS);
-        _sliderType = SliderType.values()[attributes.getInt(R.styleable.HSLSlider_type, 1)];
-        _paddingLeft = attPadding.getDimension(0, -1);
-        _paddingRight = attPadding.getDimension(1, -1);
-
-        // одного цвета достаточно + у color должен быть дефолтный цвет (0, 0.5, 0.5)
-        color = new HSL(0f, 0.5f, 0.5f);
-
-        if (_sliderType == SliderType.HUE) {
-            int[] mass = new int[360];
-            color.s = 1f;
-            for (int i = 0; i < 360; i++) {
-                color.h = i;
-                mass[i] = color.toColor();
-            }
-            backImage = Bitmap.createBitmap(mass, 360, 1, Bitmap.Config.ARGB_8888);
-            _startThumbPos = 0.01f;
-            color.s = 0.5f;
-        }
-        if (_sliderType == SliderType.SATURATION) {
-            int[] mass = new int[100];
-            for (int i = 0; i < 100; i++) {
-                color.s = i / 100f;
-                mass[i] = color.toColor();
-            }
-            backImage = Bitmap.createBitmap(mass, 100, 1, Bitmap.Config.ARGB_8888);
-            _startThumbPos = 0.5f;
-        }
-        if (_sliderType == SliderType.LIGHTNESS) {
-            int[] mass = new int[100];
-            for (int i = 0; i < 100; i++) {
-                color.l = i / 100f;
-                mass[i] = color.toColor();
-            }
-            backImage = Bitmap.createBitmap(mass, 100, 1, Bitmap.Config.ARGB_8888);
-            _startThumbPos = 0.5f;
-        }
-        // дефолтное положение бегунка разное для каждого типа слайдера
-        this.setOnTouchListener(this);
-        _firstTime = true;
-    }
 
 
     @Override
     protected void onDraw(Canvas canvas) {
-        _heightV = canvas.getHeight();
-        _widthV = canvas.getWidth();
-        _sliderMin = _thumbRadius + _paddingLeft;
-        _sliderMax = _widthV - _thumbRadius - _paddingRight;
-        _rect.set(_sliderMin, (_heightV / 2 - _sliderHeight / 2), _sliderMax, (_heightV / 2 + _sliderHeight / 2));
-        _sliderMinValue = (_thumbPos - _thumbRadius - _paddingLeft);
-        _sliderMaxValue = (((_widthV - _thumbRadius) - _paddingRight) - _paddingLeft - _thumbRadius);
+        float halfHeight = getHeight()/2;
+        float sliderStart = getPaddingLeft() + _thumbRadius;
+        float sliderEnd = getWidth() - getPaddingRight() - _thumbRadius;
+        float thumbCenterX = (sliderEnd-sliderStart) * _thumbPos + sliderStart;
 
-        // незачем создавать соскейленный битмап посмотри в доках описание метода drawBitmap
+        _rect.set(sliderStart,halfHeight-_halfSliderHeight,sliderEnd,halfHeight+_halfSliderHeight);
 
-        // числитель и знаменатель распихай по отдельным переменным, что красиво было. Типа sliderValue, maxSliderValue
-        // и значение value = sliderValue / maxSliderValue вынеси за switch, а то ты один и тот же кода юзаешь везде
-        // + меняй всё это дело в методе onTouch
-        if (_firstTime) {
-            _thumbPos = (_startThumbPos * (_sliderMax - _sliderMin) + _sliderMin);
-        }
-        _firstTime = false;
+        canvas.drawBitmap(_backImage, null, _rect, _paint);
 
+        _paint.setColor(Color.RED);
+        canvas.drawCircle(thumbCenterX, halfHeight, _thumbRadius, _paint);
 
-        // для saturation и lightness незачем при каждой отрисовке создавать битмап делай это в setColor и в конструкторе с дефолтным цветом
+    }
 
-
-        canvas.drawBitmap(backImage, null, _rect, p);
-        p.setShader(null);
-        p.setColor(Color.RED);
-        if (_thumbPos <= _thumbRadius + _paddingLeft) {
-            _thumbPos = _thumbRadius + _paddingLeft;
-        }
-        if (_thumbPos >= (_widthV - _thumbRadius) - _paddingRight) {
-            _thumbPos = (_widthV - _thumbRadius) - _paddingRight;
-        }
-        canvas.drawCircle(_thumbPos, _heightV / 2, _thumbRadius, p);
-        this.invalidate();
-
+    private float clamp(float val, float min, float max) {
+        return Math.max(min, Math.min(max, val));
     }
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-        switch (motionEvent.getAction()) {
+        float sliderStart = getPaddingLeft() + _thumbRadius;
+        float sliderEnd = getWidth() - getPaddingRight() - _thumbRadius;
+        float sliderWidth = sliderEnd - sliderStart;
+
+        switch (motionEvent.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
-                // y не нужно чекать, если ты сюда попал, то с y всё ок
-                if (motionEvent.getX() >= _thumbRadius + _paddingLeft && motionEvent.getX() <= (_widthV - _thumbRadius) - _paddingRight) {
-                    _thumbPos = motionEvent.getX();
-                    _move = true;
-                    this.invalidate();
-                    _xDown = motionEvent.getX();
-                }
-                break;
             case MotionEvent.ACTION_MOVE:
+                float x = clamp(motionEvent.getX() - sliderStart, 0, sliderWidth);
+                _thumbPos = x / sliderWidth;
 
-                if (_move) {
-                    _thumbPos += motionEvent.getX() - _xDown;
-                    this.invalidate();
-                    _xDown = motionEvent.getX();
+                if (_valueChangeListener != null) {
+                    _valueChangeListener.onValueChange(this
+                            , _sliderType == HUE ? _thumbPos * 360f : _thumbPos);
                 }
 
-                if (_sliderType == SliderType.HUE) {
-                    color.h = (_sliderMinValue / _sliderMaxValue) * 360;
-                    if (_valueChangeListener != null) {
-                        _valueChangeListener.onValueChange(this, color.h);
-                    }
-                }
-                if (_sliderType == SliderType.SATURATION) {
-                    color.s = (_sliderMinValue / _sliderMaxValue);
-                    if (_valueChangeListener != null) {
-                        _valueChangeListener.onValueChange(this, color.s);
-                    }
-                }
-                if (_sliderType == SliderType.LIGHTNESS) {
-                    color.l = (_sliderMinValue / _sliderMaxValue);
-                    if (_valueChangeListener != null) {
-                        _valueChangeListener.onValueChange(this, color.l);
-                    }
-                }
-                break;
-
-
+                invalidate();
         }
 
         return true;
     }
 
-    // это должно располагаться до полей
-
-
-    // расположи это вместе с остальными полями
 
 
 

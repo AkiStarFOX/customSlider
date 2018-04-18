@@ -6,12 +6,7 @@ import android.support.constraint.ConstraintLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.MotionEvent;
-import android.view.SurfaceView;
-import android.view.View;
-import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.SeekBar;
 
 public class MainActivity extends AppCompatActivity implements HSLSlider.OnValueChangeListener {
     ImageView img;
@@ -65,8 +60,6 @@ public class MainActivity extends AppCompatActivity implements HSLSlider.OnValue
 
         }
 
-        Log.d("TAG", "color h" + s.getColor().s);
-        Log.d("TAG", "color s" + l.getColor().s);
 
 
     }
